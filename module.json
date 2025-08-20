@@ -28,5 +28,5 @@
   "manifest": "https://raw.githubusercontent.com/ericpetersensa/lazy-5e-prep/main/module.json",
   "download": "https://github.com/ericpetersensa/lazy-5e-prep/releases/latest/download/module.zip",
   "license": "MIT",
-  "readme": "README.md"
+  "readme": "https://github.com/ericpetersensa/lazy-5e-prep/readme.md"
 }
