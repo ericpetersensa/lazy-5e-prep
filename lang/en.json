@@ -1,1 +1,21 @@
-
+{
+  "LAZY5E": {
+    "SETTINGS": {
+      "MenuName": "Lazy 5e Prep",
+      "MenuLabel": "Open",
+      "MenuHint": "Generate a prep journal and configure module behavior.",
+      "DialogTitle": "Lazy 5e Prep Settings",
+      "UsePagesName": "Create separate pages per step",
+      "UsePagesHint": "If enabled, your journal will have eight pages. If disabled, all steps will be on a single page."
+    },
+    "UI": {
+      "GenerateJournal": "Generate Journal",
+      "JournalCreated": "Lazy 5e Prep journal created.",
+      "SettingsSaved": "Settings saved.",
+      "AllStepsPage": "All Steps",
+      "PlannedDataSources": "Planned data sources",
+      "Notes": "Notes",
+      "NotesPlaceholder": "Add your notes here. Future versions will auto-populate this section from configured sources."
+    }
+  }
+}
