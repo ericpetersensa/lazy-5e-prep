@@ -8,7 +8,9 @@
     "verified": "13.347"
   },
   "authors": [
-    { "name": "Eric Petersen" }
+    { "name": "Eric Petersen" },
+    "email": "ericpetersensa@gmail.com",
+    "url": ""
   ],
   "esmodules": [
     "src/main.js"
