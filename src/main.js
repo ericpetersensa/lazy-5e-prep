@@ -1,48 +1,83 @@
-import { createLazy5eJournal } from "./journal/generator.js";
-
 const MODULE_ID = "lazy-5e-prep";
 
 Hooks.once("init", () => {
-  // Register setting so our module section exists in Configure Settings
+  console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
+
+  // Setting for multi-page vs single-page output
   game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
-    hint: "If enabled, prep steps will be created as individual Pages in a Journal. Otherwise all steps go into one Page.",
+    hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into one Page.",
     scope: "world",
     config: true,
     type: Boolean,
     default: false
   });
+
+  // Menu button — calls generatePrepJournal immediately
+  game.settings.registerMenu(MODULE_ID, "generatePrep", {
+    name: "Generate Prep Journal",
+    label: "Generate",
+    hint: "Click to immediately create a Lazy DM Prep journal or pages.",
+    icon: "fas fa-book",
+    type: InstantGenerateForm,
+    restricted: true
+  });
 });
 
-Hooks.on("renderSettingsConfig", (app, html) => {
-  // Find the row for our usePages setting
-  const settingRow = html.find(`.form-group:has(input[name="${MODULE_ID}.usePages"])`);
-  if (!settingRow.length) {
-    console.warn("Lazy 5e Prep | Could not find usePages row in settings config.");
-    return;
+// This "form" runs instantly, no visible UI
+class InstantGenerateForm extends FormApplication {
+  async render(...args) {
+    await generatePrepJournal();
+    return this.close(); // Close immediately so no modal appears
   }
+}
 
-  // Create the Generate button
-  const generateBtn = $(`
-    <button type="button" class="generate-prep-btn">
-      <i class="fas fa-dice-d20"></i> Generate Prep Journal
-    </button>
-  `).css({
-    marginTop: "0.5em",
-    display: "block"
-  });
+async function generatePrepJournal() {
+  const usePages = game.settings.get(MODULE_ID, "usePages");
 
-  // Wire click to generator
-  generateBtn.on("click", async () => {
-    try {
-      await createLazy5eJournal();
-      ui.notifications.info("Lazy 5e Prep Journal created successfully.");
-    } catch (err) {
-      console.error("Lazy 5e Prep | Error generating journal:", err);
-      ui.notifications.error("Failed to create Lazy 5e Prep Journal.");
+  const stepTemplates = [
+    { name: "1. Review the Characters", content: "<p>Summarize each character...</p>" },
+    { name: "2. Strong Start", content: "<p>Describe an opening scene...</p>" },
+    { name: "3. Scenes", content: "<p>List key scenes...</p>" },
+    { name: "4. Secrets & Clues", content: "<p>Write 10 short secrets...</p>" },
+    { name: "5. Fantastic Locations", content: "<p>Describe evocative locations...</p>" },
+    { name: "6. Important NPCs", content: "<p>List major NPCs...</p>" },
+    { name: "7. Monsters", content: "<p>List notable monsters...</p>" },
+    { name: "8. Treasure", content: "<p>Outline rewards...</p>" },
+    { name: "Notes", content: "<p>Additional prep notes...</p>" }
+  ];
+
+  try {
+    if (usePages) {
+      const journal = await JournalEntry.create({
+        name: "Lazy DM Prep",
+        pages: stepTemplates.map(t => ({
+          name: t.name,
+          type: "text",
+          text: { content: t.content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML }
+        }))
+      });
+      ui.notifications.info(`Created prep journal with ${stepTemplates.length} pages.`);
+      journal.sheet.render(true);
+    } else {
+      const combined = stepTemplates.map(t => `<h2>${t.name}</h2>${t.content}`).join("<hr>");
+      const journal = await JournalEntry.create({
+        name: "Lazy DM Prep",
+        pages: [{
+          name: "Session Prep",
+          type: "text",
+          text: { content: combined, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML }
+        }]
+      });
+      ui.notifications.info("Created single prep journal (all steps + notes).");
+      journal.sheet.render(true);
     }
-  });
+  } catch (err) {
+    console.error(`${MODULE_ID} | Error creating journal:`, err);
+    ui.notifications.error("Failed to create prep journal — see console for details.");
+  }
+}
 
-  // Insert after our setting row
-  settingRow.after($("<div>").append(generateBtn));
+Hooks.once("ready", () => {
+  console.log(`${MODULE_ID} | Ready`);
 });
