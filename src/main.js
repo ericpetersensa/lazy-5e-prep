@@ -1,121 +1,86 @@
-// src/main.js
 const MODULE_ID = "lazy-5e-prep";
 
-/**
- * Register module settings and menus.
- */
-function registerSettings() {
-  game.settings.registerMenu(MODULE_ID, "settingsMenu", {
-    name: "Lazy 5e Prep",
-    label: "Open",
-    hint: "Configure Lazy 5e Prep options.",
-    icon: "fas fa-dice-d20",
-    type: Lazy5ePrepSettingsForm,
-    restricted: false
-  });
+Hooks.once("init", async function () {
+  console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
 
+  // Register settings
   game.settings.register(MODULE_ID, "usePages", {
-    name: "Create separate pages per step",
-    hint: "If enabled, each step will be on its own page.",
+    name: "Use Pages instead of Journal Entries",
+    hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into a single Journal Entry as one Page.",
     scope: "world",
     config: true,
     type: Boolean,
     default: false
   });
+
+  // Add button to trigger prep generation
+  game.settings.registerMenu(MODULE_ID, "generatePrep", {
+    name: "Generate Prep Journal",
+    label: "Generate",
+    hint: "Click to create a Lazy 5e DM prep journal or pages.",
+    icon: "fas fa-book",
+    type: GeneratePrepForm,
+    restricted: true
+  });
+});
+
+// Simple form that runs our generation logic on submit
+class GeneratePrepForm extends FormApplication {
+  async _updateObject(event, formData) {
+    await generatePrepJournal();
+  }
 }
 
-/**
- * Initialization hook.
- */
-Hooks.once("init", () => {
-  console.log(`${MODULE_ID} | Initializing`);
-  registerSettings();
-});
-
-/**
- * Ready hook — runtime branch reacting to usePages value.
- */
-Hooks.once("ready", () => {
-  const usePages = game.settings.get(MODULE_ID, "usePages");
-
-  if (usePages) {
-    ui.notifications.info("Lazy 5e Prep: Pages mode is ON — each step will be a separate Journal page.");
-  } else {
-    ui.notifications.info("Lazy 5e Prep: Pages mode is OFF — all steps will be in a single Journal page.");
-  }
-});
-
-/**
- * Example function that uses the runtime branch to create journals.
- */
+// Core generation logic
 async function generatePrepJournal() {
   const usePages = game.settings.get(MODULE_ID, "usePages");
 
+  // 8 Lazy DM steps + Notes
+  const stepTemplates = [
+    { name: "1. Review the Characters", content: "<p>Summarize each character: name, class, level, goals, flags, bonds, and current resources. Note hooks you can pull.</p>" },
+    { name: "2. Strong Start", content: "<p>Describe an opening scene or encounter to immediately engage the players.</p>" },
+    { name: "3. Scenes", content: "<p>List key scenes, events, or challenges for this session. Aim for 3–5 flexible beats.</p>" },
+    { name: "4. Secrets & Clues", content: "<p>Write 10 short secrets, revelations, or clues the characters might discover—regardless of how.</p>" },
+    { name: "5. Fantastic Locations", content: "<p>Describe evocative locations (sights, sounds, sensations). Add 2–3 interactive details per location.</p>" },
+    { name: "6. Important NPCs", content: "<p>List major NPCs with a few descriptive traits, goals, and a voice or mannerism.</p>" },
+    { name: "7. Monsters", content: "<p>List notable monsters or foes, their motivations, and how they telegraph danger.</p>" },
+    { name: "8. Treasure", content: "<p>Outline rewards, loot, or incentives (story rewards, consumables, gold, magic items).</p>" },
+    { name: "Notes", content: "<p>Additional prep notes, rules reminders, contingencies, or follow-up items.</p>" }
+  ];
+
   if (usePages) {
-    // Multiple pages — one per step
-    await JournalEntry.create({
-      name: `Session Prep – ${new Date().toLocaleDateString()}`,
-      pages: [
-        { name: "Strong Start", type: "text", text: { content: "<p>Your strong start here...</p>" } },
-        { name: "Secrets & Clues", type: "text", text: { content: "<p>Your secrets and clues here...</p>" } },
-        { name: "Fantastic Locations", type: "text", text: { content: "<p>Your locations here...</p>" } },
-        { name: "NPCs", type: "text", text: { content: "<p>Your NPCs here...</p>" } }
-        // Add more steps as desired
-      ]
+    // One Journal Entry with multiple Pages
+    const journal = await JournalEntry.create({
+      name: "Lazy DM Prep",
+      pages: stepTemplates.map(t => ({
+        name: t.name,
+        type: "text",
+        text: { content: t.content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML }
+      }))
     });
+
+    ui.notifications.info(`Created prep journal with ${stepTemplates.length} pages.`);
+    journal.sheet.render(true);
   } else {
-    // Single page — all steps together
-    const allStepsContent = `
-      <h2>Strong Start</h2><p>Your strong start here...</p>
-      <h2>Secrets & Clues</h2><p>Your secrets and clues here...</p>
-      <h2>Fantastic Locations</h2><p>Your locations here...</p>
-      <h2>NPCs</h2><p>Your NPCs here...</p>
-    `;
+    // One Journal Entry with a single Page combining all steps
+    const combined = stepTemplates
+      .map(t => `<h2>${t.name}</h2>${t.content}`)
+      .join("<hr>");
 
-    await JournalEntry.create({
-      name: `Session Prep – ${new Date().toLocaleDateString()}`,
-      content: allStepsContent
+    const journal = await JournalEntry.create({
+      name: "Lazy DM Prep",
+      pages: [{
+        name: "Session Prep",
+        type: "text",
+        text: { content: combined, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML }
+      }]
     });
-  }
 
-  ui.notifications.info("Lazy 5e Prep journal created.");
-}
-
-/**
- * Settings form class.
- */
-class Lazy5ePrepSettingsForm extends FormApplication {
-  static get defaultOptions() {
-    return mergeObject(super.defaultOptions, {
-      title: "Lazy 5e Prep Settings",
-      id: "lazy-5e-prep-settings",
-      template: `modules/${MODULE_ID}/templates/settings.html`,
-      width: 500
-    });
-  }
-
-  /** Pass data to the template */
-  getData() {
-    return {
-      usePages: game.settings.get(MODULE_ID, "usePages")
-    };
-  }
-
-  activateListeners(html) {
-    super.activateListeners(html);
-
-    // When Generate Prep Journal button is clicked
-    html.find(".lazy5e-generate").click(async () => {
-      await generatePrepJournal();
-    });
-  }
-
-  /** Update settings when the form is submitted */
-  async _updateObject(event, formData) {
-    await game.settings.set(MODULE_ID, "usePages", formData.usePages);
-    ui.notifications.info("Lazy 5e Prep settings updated.");
+    ui.notifications.info("Created single prep journal (one page with all steps + notes).");
+    journal.sheet.render(true);
   }
 }
 
-// Optionally expose the generate function globally for quick console testing
-globalThis.Lazy5ePrep = { generatePrepJournal };
+Hooks.once("ready", () => {
+  console.log(`${MODULE_ID} | Ready`);
+});
