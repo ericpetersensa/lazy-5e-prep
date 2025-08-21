@@ -1,6 +1,10 @@
+import { createLazy5eJournal } from "./journal/generator.js";
+
+const MODULE_ID = "lazy-5e-prep";
+
 Hooks.once("init", () => {
-  // 1. Register a real setting so Foundry creates our section in Configure Settings
-  game.settings.register("lazy-5e-prep", "usePages", {
+  // Register setting so our module section exists in Configure Settings
+  game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
     hint: "If enabled, prep steps will be created as individual Pages in a Journal. Otherwise all steps go into one Page.",
     scope: "world",
@@ -11,11 +15,14 @@ Hooks.once("init", () => {
 });
 
 Hooks.on("renderSettingsConfig", (app, html) => {
-  // 2. v13 markup uses .package-title with data-package-id
-  const moduleHeader = html.find(`.package-title[data-package-id="lazy-5e-prep"]`);
-  if (!moduleHeader.length) return;
+  // Find the row for our usePages setting
+  const settingRow = html.find(`.form-group:has(input[name="${MODULE_ID}.usePages"])`);
+  if (!settingRow.length) {
+    console.warn("Lazy 5e Prep | Could not find usePages row in settings config.");
+    return;
+  }
 
-  // 3. Create the Generate button
+  // Create the Generate button
   const generateBtn = $(`
     <button type="button" class="generate-prep-btn">
       <i class="fas fa-dice-d20"></i> Generate Prep Journal
@@ -25,17 +32,17 @@ Hooks.on("renderSettingsConfig", (app, html) => {
     display: "block"
   });
 
-  // 4. Hook up click handler to your generator
+  // Wire click to generator
   generateBtn.on("click", async () => {
     try {
-      await createLazy5eJournal(); // assumes it's globally available from generator.js
+      await createLazy5eJournal();
       ui.notifications.info("Lazy 5e Prep Journal created successfully.");
     } catch (err) {
-      console.error(err);
+      console.error("Lazy 5e Prep | Error generating journal:", err);
       ui.notifications.error("Failed to create Lazy 5e Prep Journal.");
     }
   });
 
-  // 5. Insert right below the module title
-  moduleHeader.after(generateBtn);
+  // Insert after our setting row
+  settingRow.after($("<div>").append(generateBtn));
 });
