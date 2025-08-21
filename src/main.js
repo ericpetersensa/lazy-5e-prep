@@ -3,7 +3,7 @@ const MODULE_ID = "lazy-5e-prep";
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
 
-  // Setting to control multi-page vs single-page output
+  // Setting for multi-page vs single-page output
   game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
     hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into one Page.",
@@ -13,37 +13,38 @@ Hooks.once("init", () => {
     default: false
   });
 
-  // One-click generate setting
-  game.settings.register(MODULE_ID, "generateNow", {
-    name: "Generate Lazy DM Prep Now",
-    hint: "Click the checkbox to immediately generate your prep journal.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-    onChange: async value => {
-      if (value) {
-        await generatePrepJournal();
-        // Reset to false so the checkbox can be clicked again
-        await game.settings.set(MODULE_ID, "generateNow", false);
-      }
-    }
+  // Menu button — calls generatePrepJournal immediately
+  game.settings.registerMenu(MODULE_ID, "generatePrep", {
+    name: "Generate Prep Journal",
+    label: "Generate",
+    hint: "Click to immediately create a Lazy DM Prep journal or pages.",
+    icon: "fas fa-book",
+    type: InstantGenerateForm,
+    restricted: true
   });
 });
+
+// This "form" runs instantly, no visible UI
+class InstantGenerateForm extends FormApplication {
+  async render(...args) {
+    await generatePrepJournal();
+    return this.close(); // Close immediately so no modal appears
+  }
+}
 
 async function generatePrepJournal() {
   const usePages = game.settings.get(MODULE_ID, "usePages");
 
   const stepTemplates = [
-    { name: "1. Review the Characters", content: "<p>Summarize each character: name, class, level, goals, flags, bonds, and current resources. Note hooks you can pull.</p>" },
-    { name: "2. Strong Start", content: "<p>Describe an opening scene or encounter to immediately engage the players.</p>" },
-    { name: "3. Scenes", content: "<p>List key scenes, events, or challenges for this session. Aim for 3–5 flexible beats.</p>" },
-    { name: "4. Secrets & Clues", content: "<p>Write 10 short secrets, revelations, or clues the characters might discover—regardless of how.</p>" },
-    { name: "5. Fantastic Locations", content: "<p>Describe evocative locations (sights, sounds, sensations). Add 2–3 interactive details per location.</p>" },
-    { name: "6. Important NPCs", content: "<p>List major NPCs with a few descriptive traits, goals, and a voice or mannerism.</p>" },
-    { name: "7. Monsters", content: "<p>List notable monsters or foes, their motivations, and how they telegraph danger.</p>" },
-    { name: "8. Treasure", content: "<p>Outline rewards, loot, or incentives (story rewards, consumables, gold, magic items).</p>" },
-    { name: "Notes", content: "<p>Additional prep notes, rules reminders, contingencies, or follow-up items.</p>" }
+    { name: "1. Review the Characters", content: "<p>Summarize each character...</p>" },
+    { name: "2. Strong Start", content: "<p>Describe an opening scene...</p>" },
+    { name: "3. Scenes", content: "<p>List key scenes...</p>" },
+    { name: "4. Secrets & Clues", content: "<p>Write 10 short secrets...</p>" },
+    { name: "5. Fantastic Locations", content: "<p>Describe evocative locations...</p>" },
+    { name: "6. Important NPCs", content: "<p>List major NPCs...</p>" },
+    { name: "7. Monsters", content: "<p>List notable monsters...</p>" },
+    { name: "8. Treasure", content: "<p>Outline rewards...</p>" },
+    { name: "Notes", content: "<p>Additional prep notes...</p>" }
   ];
 
   try {
