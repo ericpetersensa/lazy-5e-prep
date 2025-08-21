@@ -1,97 +1,64 @@
-// generator.js — Lazy 5e Prep (v13-friendly, wired-up + verbose logging)
+import { STEP_DEFS } from "../steps/index.js";
 
-// Fortified folder helper
-async function getSessionPrepFolderId() {
-  if (getSessionPrepFolderId._cache) {
-    console.log("Lazy 5e Prep | Using cached folder ID:", getSessionPrepFolderId._cache);
-    return getSessionPrepFolderId._cache;
-  }
+const MODULE_ID = "lazy-5e-prep";
 
-  console.log("Lazy 5e Prep | Checking for existing 'Session Prep' JournalEntry folder…");
+export async function createLazy5eJournal(options = {}) {
+  const usePages = options.usePages ?? game.settings.get(MODULE_ID, "usePages");
+  const journalName = `Lazy 5e Prep — ${new Date().toLocaleDateString()}`;
 
-  let folder = game.folders.find(f =>
-    f.type === "JournalEntry" &&
-    f.name.toLowerCase() === "session prep"
-  );
-
-  if (!folder) {
-    try {
-      console.log("Lazy 5e Prep | No matching folder found, creating…");
-      folder = await Folder.create({
-        name: "Session Prep",
-        type: "JournalEntry",
-        color: "#85bcde"
-      });
-      console.log("Lazy 5e Prep | Folder created successfully:", folder);
-    } catch (err) {
-      console.error("Lazy 5e Prep | Error creating 'Session Prep' folder:", err);
-      return undefined;
-    }
-  } else {
-    console.log("Lazy 5e Prep | Found existing folder:", folder);
-  }
-
-  getSessionPrepFolderId._cache = folder.id;
-  return folder.id;
+  if (usePages) return createMultiPageJournal(journalName);
+  else return createSinglePageJournal(journalName);
 }
 
-// Main journal generator
-async function createLazy5eJournal() {
-  try {
-    const folderId = await getSessionPrepFolderId();
+async function createMultiPageJournal(name) {
+  const HTML = CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1;
 
-    const entryData = {
-      name: "Lazy DM Prep",
-      folder: folderId || null,
-      pages: [
-        {
-          name: "Prep Outline",
-          type: "text",
-          text: {
-            content: `<h2>Strong Start</h2>
-<p>Describe an evocative opening scene.</p>
+  const pages = STEP_DEFS.map((s, i) => ({
+    name: `${i + 1}. ${s.title}`,
+    type: "text",
+    text: { format: HTML, content: renderStepPlaceholderHTML(s) }
+  }));
 
-<h2>Secrets & Clues</h2>
-<ul><li>...</li></ul>
-
-<h2>Fantastic Locations</h2>
-<ul><li>...</li></ul>
-
-<h2>NPCs</h2>
-<ul><li>...</li></ul>
-
-<h2>Monsters</h2>
-<ul><li>...</li></ul>
-
-<h2>Treasure</h2>
-<ul><li>...</li></ul>
-
-<h2>Next Steps</h2>
-<ul><li>...</li></ul>`
-          }
-        }
-      ]
-    };
-
-    const journal = await JournalEntry.create(entryData);
-    console.log("Lazy 5e Prep | Journal created:", journal);
-    ui.notifications.info("Lazy DM Prep journal created successfully.");
-  } catch (err) {
-    console.error("Lazy 5e Prep | Error creating journal:", err);
-    ui.notifications.error("Lazy DM Prep journal could not be created — see console.");
-  }
+  return JournalEntry.create({ name, pages }, { renderSheet: true });
 }
 
-// Bind to Generate button only after Foundry is ready
-Hooks.once("ready", () => {
-  const button = document.getElementById("lazy5e-generate");
-  if (button) {
-    button.addEventListener("click", () => {
-      console.log("Lazy 5e Prep | Generate button clicked.");
-      createLazy5eJournal();
-    });
-    console.log("Lazy 5e Prep | Generate button wired up and ready.");
-  } else {
-    console.warn("Lazy 5e Prep | Generate button not found in DOM.");
-  }
-});
+async function createSinglePageJournal(name) {
+  const HTML = CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1;
+
+  const content = STEP_DEFS.map((s, i) => `
+    <h2>${i + 1}. ${s.title}</h2>
+    ${renderStepBodyHTML(s)}
+    <hr/>
+  `).join("\n");
+
+  const pages = [{
+    name: game.i18n.localize("LAZY5E.UI.AllStepsPage"),
+    type: "text",
+    text: { format: HTML, content }
+  }];
+
+  return JournalEntry.create({ name, pages }, { renderSheet: true });
+}
+
+function renderStepPlaceholderHTML(step) {
+  return `
+    ${renderStepHeaderHTML(step)}
+    ${renderStepBodyHTML(step)}
+  `;
+}
+
+function renderStepHeaderHTML(step) {
+  return `<h2>${step.title}</h2><p class="notes">${step.description}</p>`;
+}
+
+function renderStepBodyHTML(step) {
+  const planned = step.planned || [];
+  const list = planned.map(p => `<li><strong>${p.label}:</strong> ${p.note}</li>`).join("");
+
+  return `
+    <h3>${game.i18n.localize("LAZY5E.UI.PlannedDataSources")}</h3>
+    <ul>${list}</ul>
+    <h3>${game.i18n.localize("LAZY5E.UI.Notes")}</h3>
+    <p>${game.i18n.localize("LAZY5E.UI.NotesPlaceholder")}</p>
+  `;
+}
