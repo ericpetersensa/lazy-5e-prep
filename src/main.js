@@ -77,6 +77,8 @@ async function generatePrepJournal() {
       content: allStepsContent
     });
   }
+
+  ui.notifications.info("Lazy 5e Prep journal created.");
 }
 
 /**
@@ -97,6 +99,15 @@ class Lazy5ePrepSettingsForm extends FormApplication {
     return {
       usePages: game.settings.get(MODULE_ID, "usePages")
     };
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+
+    // When Generate Prep Journal button is clicked
+    html.find(".lazy5e-generate").click(async () => {
+      await generatePrepJournal();
+    });
   }
 
   /** Update settings when the form is submitted */
