@@ -1,8 +1,13 @@
-// generator.js — Lazy 5e Prep (v13‑friendly)
+// generator.js — Lazy 5e Prep (v13-friendly, wired-up + verbose logging)
 
 // Fortified folder helper
 async function getSessionPrepFolderId() {
-  if (getSessionPrepFolderId._cache) return getSessionPrepFolderId._cache;
+  if (getSessionPrepFolderId._cache) {
+    console.log("Lazy 5e Prep | Using cached folder ID:", getSessionPrepFolderId._cache);
+    return getSessionPrepFolderId._cache;
+  }
+
+  console.log("Lazy 5e Prep | Checking for existing 'Session Prep' JournalEntry folder…");
 
   let folder = game.folders.find(f =>
     f.type === "JournalEntry" &&
@@ -11,15 +16,15 @@ async function getSessionPrepFolderId() {
 
   if (!folder) {
     try {
-      console.log("Lazy 5e Prep | Creating 'Session Prep' folder…");
+      console.log("Lazy 5e Prep | No matching folder found, creating…");
       folder = await Folder.create({
         name: "Session Prep",
         type: "JournalEntry",
         color: "#85bcde"
       });
-      console.log("Lazy 5e Prep | Folder created:", folder);
+      console.log("Lazy 5e Prep | Folder created successfully:", folder);
     } catch (err) {
-      console.error("Error creating 'Session Prep' folder:", err);
+      console.error("Lazy 5e Prep | Error creating 'Session Prep' folder:", err);
       return undefined;
     }
   } else {
@@ -73,15 +78,20 @@ async function createLazy5eJournal() {
     ui.notifications.info("Lazy DM Prep journal created successfully.");
   } catch (err) {
     console.error("Lazy 5e Prep | Error creating journal:", err);
-    ui.notifications.error("Lazy 5e Prep journal could not be created — see console.");
+    ui.notifications.error("Lazy DM Prep journal could not be created — see console.");
   }
 }
 
-// Wire up your Generate button
+// Bind to Generate button only after Foundry is ready
 Hooks.once("ready", () => {
   const button = document.getElementById("lazy5e-generate");
   if (button) {
-    button.addEventListener("click", createLazy5eJournal);
-    console.log("Lazy 5e Prep | Generate button wired up.");
+    button.addEventListener("click", () => {
+      console.log("Lazy 5e Prep | Generate button clicked.");
+      createLazy5eJournal();
+    });
+    console.log("Lazy 5e Prep | Generate button wired up and ready.");
+  } else {
+    console.warn("Lazy 5e Prep | Generate button not found in DOM.");
   }
 });
