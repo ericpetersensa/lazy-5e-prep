@@ -5,12 +5,13 @@ const MODULE_ID = "lazy-5e-prep";
 export async function createLazy5eJournal(options = {}) {
   const usePages = options.usePages ?? game.settings.get(MODULE_ID, "usePages");
   const journalName = `Lazy 5e Prep — ${new Date().toLocaleDateString()}`;
+  const folder = await getOrCreateLazyPrepFolder();
 
-  if (usePages) return createMultiPageJournal(journalName);
-  else return createSinglePageJournal(journalName);
+  if (usePages) return createMultiPageJournal(journalName, folder);
+  else return createSinglePageJournal(journalName, folder);
 }
 
-async function createMultiPageJournal(name) {
+async function createMultiPageJournal(name, folder) {
   const HTML = CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1;
 
   const pages = STEP_DEFS.map((s, i) => ({
@@ -19,10 +20,10 @@ async function createMultiPageJournal(name) {
     text: { format: HTML, content: renderStepPlaceholderHTML(s) }
   }));
 
-  return JournalEntry.create({ name, pages }, { renderSheet: true });
+  return JournalEntry.create({ name, pages, folder }, { renderSheet: true });
 }
 
-async function createSinglePageJournal(name) {
+async function createSinglePageJournal(name, folder) {
   const HTML = CONST.JOURNAL_ENTRY_PAGE_FORMATS?.HTML ?? 1;
 
   const content = STEP_DEFS.map((s, i) => `
@@ -37,7 +38,7 @@ async function createSinglePageJournal(name) {
     text: { format: HTML, content }
   }];
 
-  return JournalEntry.create({ name, pages }, { renderSheet: true });
+  return JournalEntry.create({ name, pages, folder }, { renderSheet: true });
 }
 
 function renderStepPlaceholderHTML(step) {
@@ -61,26 +62,26 @@ function renderStepBodyHTML(step) {
     <h3>${game.i18n.localize("LAZY5E.UI.Notes")}</h3>
     <p>${game.i18n.localize("LAZY5E.UI.NotesPlaceholder")}</p>
   `;
-  async function getOrCreateLazyPrepFolder() {
+}
+
+// 📁 Folder creation helper
+async function getOrCreateLazyPrepFolder() {
   const folderName = "Lazy 5e Prep";
   const folderType = "JournalEntry";
   const folderColor = "#85bcde";
 
-  // Check for existing folder
   const existing = game.folders.find(f => f.name === folderName && f.type === folderType);
   if (existing) return existing.id;
 
-  // Create new folder
   try {
     const folder = await Folder.create({
       name: folderName,
       type: folderType,
-      color: folderColor,
-      parent: null
+      color: folderColor
     });
     return folder.id;
   } catch (err) {
     console.warn(`${MODULE_ID} | Failed to create folder:`, err);
-    return null; // Fallback: no folder assignment
+    return null;
   }
 }
