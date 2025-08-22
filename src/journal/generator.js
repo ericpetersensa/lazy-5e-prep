@@ -61,4 +61,26 @@ function renderStepBodyHTML(step) {
     <h3>${game.i18n.localize("LAZY5E.UI.Notes")}</h3>
     <p>${game.i18n.localize("LAZY5E.UI.NotesPlaceholder")}</p>
   `;
+  async function getOrCreateLazyPrepFolder() {
+  const folderName = "Lazy 5e Prep";
+  const folderType = "JournalEntry";
+  const folderColor = "#85bcde";
+
+  // Check for existing folder
+  const existing = game.folders.find(f => f.name === folderName && f.type === folderType);
+  if (existing) return existing.id;
+
+  // Create new folder
+  try {
+    const folder = await Folder.create({
+      name: folderName,
+      type: folderType,
+      color: folderColor,
+      parent: null
+    });
+    return folder.id;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | Failed to create folder:`, err);
+    return null; // Fallback: no folder assignment
+  }
 }
