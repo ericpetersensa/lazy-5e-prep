@@ -4,12 +4,12 @@ export async function createLazy5eJournal({ usePages }) {
   console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
   try {
-    // Format today's date as MM-DD-YYYY
+    // Format today's date as MM/DD/YYYY
     const today = new Date();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
     const yyyy = today.getFullYear();
-    const dateStamp = `${mm}-${dd}-${yyyy}`;
+    const dateStamp = `${mm}/${dd}/${yyyy}`;
 
     // Ensure "Lazy DM Prep" folder exists
     let folder = game.folders.find(
