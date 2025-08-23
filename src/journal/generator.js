@@ -7,6 +7,11 @@ export async function createLazy5eJournal(options = {}) {
   const journalName = `Lazy 5e Prep — ${new Date().toLocaleDateString()}`;
   const folder = await getOrCreateLazyPrepFolder();
 
+  if (!folder) {
+    ui.notifications.warn("Could not create or locate folder for Lazy 5e Prep.");
+    return null;
+  }
+
   if (usePages) return createMultiPageJournal(journalName, folder);
   else return createSinglePageJournal(journalName, folder);
 }
@@ -20,7 +25,11 @@ async function createMultiPageJournal(name, folder) {
     text: { format: HTML, content: renderStepPlaceholderHTML(s) }
   }));
 
-  return JournalEntry.create({ name, pages, folder }, { renderSheet: true });
+  return JournalEntry.create({
+    name,
+    folder: folder.id,
+    pages
+  }, { renderSheet: true });
 }
 
 async function createSinglePageJournal(name, folder) {
@@ -38,7 +47,11 @@ async function createSinglePageJournal(name, folder) {
     text: { format: HTML, content }
   }];
 
-  return JournalEntry.create({ name, pages, folder }, { renderSheet: true });
+  return JournalEntry.create({
+    name,
+    folder: folder.id,
+    pages
+  }, { renderSheet: true });
 }
 
 function renderStepPlaceholderHTML(step) {
@@ -64,22 +77,22 @@ function renderStepBodyHTML(step) {
   `;
 }
 
-// 📁 Folder creation helper
+// 📁 Folder creation helper — returns full Folder object
 async function getOrCreateLazyPrepFolder() {
   const folderName = "Lazy 5e Prep";
   const folderType = "JournalEntry";
   const folderColor = "#85bcde";
 
-  const existing = game.folders.find(f => f.name === folderName && f.type === folderType);
-  if (existing) return existing.id;
+  let folder = game.folders.find(f => f.name === folderName && f.type === folderType);
+  if (folder) return folder;
 
   try {
-    const folder = await Folder.create({
+    folder = await Folder.create({
       name: folderName,
       type: folderType,
       color: folderColor
     });
-    return folder.id;
+    return folder;
   } catch (err) {
     console.warn(`${MODULE_ID} | Failed to create folder:`, err);
     return null;
