@@ -17,33 +17,38 @@ export async function createLazy5eJournal({ usePages }) {
       console.log("📂 Created folder:", folder.name);
     }
 
-    // 2. Create Journal
     let journal;
     if (usePages) {
-      // One journal with multiple Pages
+      // One journal with multiple Pages (numbered if flagged)
       journal = await JournalEntry.create({
         name: "Lazy DM Prep",
         folder: folder.id,
-        pages: STEP_DEFS.map((step, idx) => ({
-          name: step.title,
-          type: "text",
-          text: {
-            content: `
-              <h2>${step.title}</h2>
-              <p>${step.description}</p>
-              ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
-            `
-          },
-          sort: idx * 100
-        }))
+        pages: STEP_DEFS.map((step, idx) => {
+          const stepNumber = step.numbered ? `${idx + 1}. ` : "";
+          return {
+            name: `${stepNumber}${step.title}`,
+            type: "text",
+            text: {
+              content: `
+                <h2>${stepNumber}${step.title}</h2>
+                <p>${step.description}</p>
+                ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
+              `
+            },
+            sort: idx * 100
+          };
+        })
       });
     } else {
       // One journal with all steps in a single Page
-      const combinedContent = STEP_DEFS.map((step, idx) => `
-        <h2>${step.numbered ? `${idx + 1}. ` : ""}${step.title}</h2>
-        <p>${step.description}</p>
-        ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
-      `).join("");
+      const combinedContent = STEP_DEFS.map((step, idx) => {
+        const stepNumber = step.numbered ? `${idx + 1}. ` : "";
+        return `
+          <h2>${stepNumber}${step.title}</h2>
+          <p>${step.description}</p>
+          ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
+        `;
+      }).join("");
 
       journal = await JournalEntry.create({
         name: "Lazy DM Prep",
