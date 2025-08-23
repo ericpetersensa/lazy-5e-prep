@@ -1,61 +1,50 @@
-import { STEP_DEFS } from "../steps/index.js";
+import { createLazy5eJournal } from "./journal/generator.js";
 
 const MODULE_ID = "lazy-5e-prep";
 
-export async function createLazy5eJournal({ usePages }) {
-  const journalName = "Lazy DM Prep";
-  const folder = await getOrCreateFolder("Lazy Prep");
+class InstantGenerateForm extends FormApplication {
+  async render(...args) {
+    try {
+      const usePages = game.settings.get(MODULE_ID, "usePages");
+      const journal = await createLazy5eJournal({ usePages });
 
-  const journal = await JournalEntry.create({
-    name: journalName,
-    folder: folder.id,
-    flags: { [MODULE_ID]: true }
+      if (journal) {
+        ui.notifications.info("Lazy DM Prep journal created.");
+        journal.sheet.render(true);
+      } else {
+        ui.notifications.warn("Journal creation failed — check console for details.");
+      }
+    } catch (err) {
+      console.error(`${MODULE_ID} | Error generating journal:`, err);
+      ui.notifications.error("Failed to create prep journal.");
+    }
+
+    return this.close();
+  }
+}
+
+Hooks.once("init", () => {
+  console.log(`${MODULE_ID} | Initializing`);
+
+  game.settings.register(MODULE_ID, "usePages", {
+    name: "Use Pages instead of Journal Entries",
+    hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into one Page.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
   });
 
-  if (usePages) {
-    const pages = STEP_DEFS.map((step, index) => {
-      const title = step.numbered ? `${index + 1}. ${step.title}` : step.title;
-      const content = renderStepContent(step);
-      return {
-        name: title,
-        type: "text",
-        text: { content, format: 1 }
-      };
-    });
+  game.settings.registerMenu(MODULE_ID, "generatePrep", {
+    name: "Generate Prep Journal",
+    label: "Generate",
+    hint: "Click to immediately create a Lazy DM Prep journal or pages.",
+    icon: "fas fa-book",
+    type: InstantGenerateForm,
+    restricted: true
+  });
+});
 
-    await journal.createEmbeddedDocuments("JournalEntryPage", pages);
-  } else {
-    const combinedContent = STEP_DEFS.map((step, index) => {
-      const title = step.numbered ? `${index + 1}. ${step.title}` : step.title;
-      const content = renderStepContent(step);
-      return `<h2>${title}</h2>\n${content}`;
-    }).join("\n<hr>\n");
-
-    await journal.update({
-      content: combinedContent
-    });
-  }
-
-  return journal;
-}
-
-function renderStepContent(step) {
-  const plannedItems = step.planned?.map(p => `<li><strong>${p.label}:</strong> ${p.note}</li>`).join("") || "";
-  return `
-    <p>${step.description}</p>
-    ${plannedItems ? `<ul>${plannedItems}</ul>` : ""}
-  `;
-}
-
-async function getOrCreateFolder(name) {
-  let folder = game.folders.getName(name);
-  if (!folder) {
-    folder = await Folder.create({
-      name,
-      type: "JournalEntry",
-      color: "#ffcc99",
-      flags: { [MODULE_ID]: true }
-    });
-  }
-  return folder;
-}
+Hooks.once("ready", () => {
+  console.log(`${MODULE_ID} | Ready`);
+});
