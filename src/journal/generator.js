@@ -24,10 +24,38 @@ export async function createLazy5eJournal({ usePages }) {
       console.log("📂 Created folder:", folder.name);
     }
 
+    // Build updated step content with dynamic PC listing in step 0
+    const stepsWithDynamicContent = await Promise.all(
+      STEP_DEFS.map(async (step, idx) => {
+        if (idx === 0) {
+          // REVIEW THE CHARACTERS PAGE with portraits + links
+          const pcs = game.actors.filter(a =>
+            !["npc", "vehicle", "monster"].includes(a.type)
+          );
+
+          const actorHTML = pcs.map(a => {
+            const portrait = a.img || "icons/svg/mystery-man.svg";
+            return `
+              <div style="display:flex; align-items:center; gap:0.5em; margin-bottom:1em;">
+                <img src="${portrait}" alt="${a.name}" width="48" height="48" style="border:1px solid #555; border-radius:4px;">
+                <a data-entity-link data-type="Actor" data-id="${a.id}"><strong>${a.name}</strong></a>
+              </div>
+              <hr style="margin:1em 0;">
+            `;
+          }).join("");
+
+          return {
+            ...step,
+            extraContent: actorHTML
+          };
+        }
+        return { ...step, extraContent: "" };
+      })
+    );
+
     let journal;
     if (usePages) {
-      // Multi‑page Journal: Page title only in Foundry's title bar
-      const pages = STEP_DEFS.map((step, idx) => {
+      const pages = stepsWithDynamicContent.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return {
           name: `${stepNumber}${step.title}`,
@@ -36,6 +64,7 @@ export async function createLazy5eJournal({ usePages }) {
             content: `
               <p>${step.description}</p>
               ${renderPlanned(step)}
+              ${step.extraContent || ""}
             `
           },
           sort: idx * 100
@@ -49,13 +78,13 @@ export async function createLazy5eJournal({ usePages }) {
       });
 
     } else {
-      // Single‑page Journal: combined content without redundant headings
-      const combinedContent = STEP_DEFS.map((step, idx) => {
+      const combinedContent = stepsWithDynamicContent.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return `
           <p><strong>${stepNumber}${step.title}</strong></p>
           <p>${step.description}</p>
           ${renderPlanned(step)}
+          ${step.extraContent || ""}
         `;
       }).join("<hr>");
 
@@ -80,7 +109,6 @@ export async function createLazy5eJournal({ usePages }) {
   }
 }
 
-// Render planned list items for a step
 function renderPlanned(step) {
   if (!step.planned || !step.planned.length) return "";
   return `<ul>${step.planned
