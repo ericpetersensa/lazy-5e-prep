@@ -1,41 +1,65 @@
+import { STEP_DEFS } from "../steps/index.js";
+
 export async function createLazy5eJournal({ usePages }) {
   console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
   try {
-    if (usePages) {
-      // Create a Journal with multiple Pages
-      const journal = await JournalEntry.create({
+    // 1. Ensure "Lazy DM Prep" folder exists
+    let folder = game.folders.find(
+      f => f.name === "Lazy DM Prep" && f.type === "JournalEntry"
+    );
+    if (!folder) {
+      folder = await Folder.create({
         name: "Lazy DM Prep",
-        pages: [
-          { name: "Strong Start", type: "text", text: { content: "<p>Describe your strong start...</p>" } },
-          { name: "Scenes", type: "text", text: { content: "<p>List your key scenes...</p>" } },
-          { name: "Secrets", type: "text", text: { content: "<p>What secrets will be revealed...</p>" } }
-        ]
+        type: "JournalEntry",
+        color: "#d9a066"
       });
-      return journal;
-    } else {
-      // Create a Journal with a single Page containing all steps
-      const journal = await JournalEntry.create({
+      console.log("📂 Created folder:", folder.name);
+    }
+
+    // 2. Create Journal
+    let journal;
+    if (usePages) {
+      // One journal with multiple Pages
+      journal = await JournalEntry.create({
         name: "Lazy DM Prep",
+        folder: folder.id,
+        pages: STEP_DEFS.map((step, idx) => ({
+          name: step.title,
+          type: "text",
+          text: {
+            content: `
+              <h2>${step.title}</h2>
+              <p>${step.description}</p>
+              ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
+            `
+          },
+          sort: idx * 100
+        }))
+      });
+    } else {
+      // One journal with all steps in a single Page
+      const combinedContent = STEP_DEFS.map((step, idx) => `
+        <h2>${step.numbered ? `${idx + 1}. ` : ""}${step.title}</h2>
+        <p>${step.description}</p>
+        ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
+      `).join("");
+
+      journal = await JournalEntry.create({
+        name: "Lazy DM Prep",
+        folder: folder.id,
         pages: [
           {
             name: "Prep",
             type: "text",
-            text: {
-              content: `
-                <h2>Strong Start</h2>
-                <p>Describe your strong start...</p>
-                <h2>Scenes</h2>
-                <p>List your key scenes...</p>
-                <h2>Secrets</h2>
-                <p>What secrets will be revealed...</p>
-              `
-            }
+            text: { content: combinedContent }
           }
         ]
       });
-      return journal;
     }
+
+    return journal;
+
   } catch (err) {
     console.error("❌ Error creating Lazy DM Prep journal:", err);
     return null;
