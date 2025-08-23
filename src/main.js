@@ -27,7 +27,6 @@ class InstantGenerateForm extends FormApplication {
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
 
-  // Setting for multi-page vs single-page output
   game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
     hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into one Page.",
@@ -37,7 +36,6 @@ Hooks.once("init", () => {
     default: false
   });
 
-  // Menu button — calls generatePrepJournal immediately
   game.settings.registerMenu(MODULE_ID, "generatePrep", {
     name: "Generate Prep Journal",
     label: "Generate",
