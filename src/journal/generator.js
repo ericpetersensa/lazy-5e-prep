@@ -28,17 +28,18 @@ export async function createLazy5eJournal({ usePages }) {
     const stepsWithDynamicContent = await Promise.all(
       STEP_DEFS.map(async (step, idx) => {
         if (idx === 0) {
-          // REVIEW THE CHARACTERS PAGE with portraits + links
+          // REVIEW THE CHARACTERS PAGE with portraits + @Actor clickable links
           const pcs = game.actors.filter(a =>
             !["npc", "vehicle", "monster"].includes(a.type)
           );
 
           const actorHTML = pcs.map(a => {
             const portrait = a.img || "icons/svg/mystery-man.svg";
+            const link = `@Actor[${a.id}]{${a.name}}`;
             return `
               <div style="display:flex; align-items:center; gap:0.5em; margin-bottom:1em;">
                 <img src="${portrait}" alt="${a.name}" width="48" height="48" style="border:1px solid #555; border-radius:4px;">
-                <a data-entity-link data-type="Actor" data-id="${a.id}"><strong>${a.name}</strong></a>
+                ${link}
               </div>
               <hr style="margin:1em 0;">
             `;
