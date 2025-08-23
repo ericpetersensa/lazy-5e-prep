@@ -26,15 +26,14 @@ export async function createLazy5eJournal({ usePages }) {
 
     let journal;
     if (usePages) {
-      // One Journal with multiple Pages — each page gets a real name & content
+      // Multi‑page Journal: Page title only in Foundry's title bar
       const pages = STEP_DEFS.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return {
-          name: `${stepNumber}${step.title}`, // Page Title in Foundry
+          name: `${stepNumber}${step.title}`,
           type: "text",
           text: {
             content: `
-              <h2>${stepNumber}${step.title}</h2>
               <p>${step.description}</p>
               ${renderPlanned(step)}
             `
@@ -50,11 +49,11 @@ export async function createLazy5eJournal({ usePages }) {
       });
 
     } else {
-      // One Journal with a single Page combining all steps
+      // Single‑page Journal: combined content without redundant headings
       const combinedContent = STEP_DEFS.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return `
-          <h2>${stepNumber}${step.title}</h2>
+          <p><strong>${stepNumber}${step.title}</strong></p>
           <p>${step.description}</p>
           ${renderPlanned(step)}
         `;
