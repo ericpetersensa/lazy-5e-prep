@@ -2,6 +2,28 @@ import { createLazy5eJournal } from "./journal/generator.js";
 
 const MODULE_ID = "lazy-5e-prep";
 
+// This "form" runs instantly, no visible UI
+class InstantGenerateForm extends FormApplication {
+  async render(...args) {
+    try {
+      const usePages = game.settings.get(MODULE_ID, "usePages");
+      const journal = await createLazy5eJournal({ usePages });
+
+      if (journal) {
+        ui.notifications.info("Lazy DM Prep journal created.");
+        journal.sheet.render(true);
+      } else {
+        ui.notifications.warn("Journal creation failed — check console for details.");
+      }
+    } catch (err) {
+      console.error(`${MODULE_ID} | Error generating journal:`, err);
+      ui.notifications.error("Failed to create prep journal.");
+    }
+
+    return this.close(); // Close immediately so no modal appears
+  }
+}
+
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
 
@@ -25,28 +47,6 @@ Hooks.once("init", () => {
     restricted: true
   });
 });
-
-// This "form" runs instantly, no visible UI
-class InstantGenerateForm extends FormApplication {
-  async render(...args) {
-    try {
-      const usePages = game.settings.get(MODULE_ID, "usePages");
-      const journal = await createLazy5eJournal({ usePages });
-
-      if (journal) {
-        ui.notifications.info("Lazy DM Prep journal created.");
-        journal.sheet.render(true);
-      } else {
-        ui.notifications.warn("Journal creation failed — check console for details.");
-      }
-    } catch (err) {
-      console.error(`${MODULE_ID} | Error generating journal:`, err);
-      ui.notifications.error("Failed to create prep journal.");
-    }
-
-    return this.close(); // Close immediately so no modal appears
-  }
-}
 
 Hooks.once("ready", () => {
   console.log(`${MODULE_ID} | Ready`);
