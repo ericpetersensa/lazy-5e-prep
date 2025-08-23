@@ -2,7 +2,6 @@ import { createLazy5eJournal } from "./journal/generator.js";
 
 const MODULE_ID = "lazy-5e-prep";
 
-// This "form" runs instantly, no visible UI
 class InstantGenerateForm extends FormApplication {
   async render(...args) {
     try {
@@ -20,12 +19,12 @@ class InstantGenerateForm extends FormApplication {
       ui.notifications.error("Failed to create prep journal.");
     }
 
-    return this.close(); // Close immediately so no modal appears
+    return this.close();
   }
 }
 
 Hooks.once("init", () => {
-  console.log(`${MODULE_ID} | Initializing ${MODULE_ID}`);
+  console.log(`${MODULE_ID} | Initializing`);
 
   game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
