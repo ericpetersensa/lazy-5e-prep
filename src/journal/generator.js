@@ -4,9 +4,12 @@ export async function createLazy5eJournal({ usePages }) {
   console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
   try {
-    // Format today's date as YYYY-MM-DD
+    // Format today's date as MM-DD-YYYY
     const today = new Date();
-    const dateStamp = today.toISOString().split("T")[0];
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const dateStamp = `${mm}-${dd}-${yyyy}`;
 
     // Ensure "Lazy DM Prep" folder exists
     let folder = game.folders.find(
@@ -27,7 +30,7 @@ export async function createLazy5eJournal({ usePages }) {
       const pages = STEP_DEFS.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return {
-          name: `${stepNumber}${step.title}`, // This is the Page Title in Foundry
+          name: `${stepNumber}${step.title}`, // Page Title in Foundry
           type: "text",
           text: {
             content: `
