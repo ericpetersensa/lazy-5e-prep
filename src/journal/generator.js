@@ -4,7 +4,11 @@ export async function createLazy5eJournal({ usePages }) {
   console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
   try {
-    // 1. Ensure "Lazy DM Prep" folder exists
+    // Format today's date as YYYY-MM-DD
+    const today = new Date();
+    const dateStamp = today.toISOString().split("T")[0];
+
+    // Ensure "Lazy DM Prep" folder exists
     let folder = game.folders.find(
       f => f.name === "Lazy DM Prep" && f.type === "JournalEntry"
     );
@@ -19,39 +23,42 @@ export async function createLazy5eJournal({ usePages }) {
 
     let journal;
     if (usePages) {
-      // One journal with multiple Pages (numbered if flagged)
-      journal = await JournalEntry.create({
-        name: "Lazy DM Prep",
-        folder: folder.id,
-        pages: STEP_DEFS.map((step, idx) => {
-          const stepNumber = step.numbered ? `${idx + 1}. ` : "";
-          return {
-            name: `${stepNumber}${step.title}`,
-            type: "text",
-            text: {
-              content: `
-                <h2>${stepNumber}${step.title}</h2>
-                <p>${step.description}</p>
-                ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
-              `
-            },
-            sort: idx * 100
-          };
-        })
+      // One Journal with multiple Pages — each page gets a real name & content
+      const pages = STEP_DEFS.map((step, idx) => {
+        const stepNumber = step.numbered ? `${idx + 1}. ` : "";
+        return {
+          name: `${stepNumber}${step.title}`, // This is the Page Title in Foundry
+          type: "text",
+          text: {
+            content: `
+              <h2>${stepNumber}${step.title}</h2>
+              <p>${step.description}</p>
+              ${renderPlanned(step)}
+            `
+          },
+          sort: idx * 100
+        };
       });
+
+      journal = await JournalEntry.create({
+        name: `Lazy DM Prep – ${dateStamp}`,
+        folder: folder.id,
+        pages
+      });
+
     } else {
-      // One journal with all steps in a single Page
+      // One Journal with a single Page combining all steps
       const combinedContent = STEP_DEFS.map((step, idx) => {
         const stepNumber = step.numbered ? `${idx + 1}. ` : "";
         return `
           <h2>${stepNumber}${step.title}</h2>
           <p>${step.description}</p>
-          ${step.numbered ? `<ol><li></li></ol>` : `<p></p>`}
+          ${renderPlanned(step)}
         `;
-      }).join("");
+      }).join("<hr>");
 
       journal = await JournalEntry.create({
-        name: "Lazy DM Prep",
+        name: `Lazy DM Prep – ${dateStamp}`,
         folder: folder.id,
         pages: [
           {
@@ -69,4 +76,12 @@ export async function createLazy5eJournal({ usePages }) {
     console.error("❌ Error creating Lazy DM Prep journal:", err);
     return null;
   }
+}
+
+// Render planned list items for a step
+function renderPlanned(step) {
+  if (!step.planned || !step.planned.length) return "";
+  return `<ul>${step.planned
+    .map(p => `<li><strong>${p.label}:</strong> ${p.note}</li>`)
+    .join("")}</ul>`;
 }
