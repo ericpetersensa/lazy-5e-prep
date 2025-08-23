@@ -25,7 +25,7 @@ class InstantGenerateForm extends FormApplication {
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | Initializing`);
 
-  // Existing settings
+  // Setting to choose Pages vs. single Journal
   game.settings.register(MODULE_ID, "usePages", {
     name: "Use Pages instead of Journal Entries",
     hint: "If enabled, prep steps will be created as individual Pages in a Journal. If disabled, all steps are combined into one Page.",
@@ -35,6 +35,7 @@ Hooks.once("init", () => {
     default: false
   });
 
+  // Settings menu for manual trigger
   game.settings.registerMenu(MODULE_ID, "generatePrep", {
     name: "Generate Prep Journal",
     label: "Generate",
@@ -49,14 +50,20 @@ Hooks.once("ready", () => {
   console.log(`${MODULE_ID} | Ready`);
 });
 
-/* -------------------------------
-   GM‑only Journal Directory Button
----------------------------------- */
-Hooks.on("renderJournalDirectory", (app, html) => {
-  if (!game.user.isGM) return; // Only GMs see this
+/* ---------------------------------
+   GM‑only Journal Directory Button — v13 Safe
+----------------------------------- */
+Hooks.on("renderJournalDirectory", (app, element) => {
+  if (!game.user.isGM) return;
+
+  // Wrap raw HTMLElement into jQuery object
+  const html = element instanceof jQuery ? element : $(element);
+
+  // Prevent duplicate injection
+  if (html.find(".generate-lazy-prep").length) return;
 
   const button = $(`
-    <button class="generate-lazy-prep">
+    <button type="button" class="generate-lazy-prep">
       <i class="fas fa-book-open"></i> Generate Lazy DM Prep
     </button>
   `);
@@ -68,12 +75,18 @@ Hooks.on("renderJournalDirectory", (app, html) => {
     ui.notifications.info("Lazy DM Prep journal created!");
   });
 
-  html.find(".header-actions").append(button);
+  // v13 toolbar selector
+  const header = html.find(".directory-header .action-buttons");
+  if (header.length) {
+    header.append(button);
+  } else {
+    console.warn(`${MODULE_ID} | Could not find Journal Directory header container`);
+  }
 });
 
-/* -------------------------------
+/* ---------------------------------
    GM‑only /prep Chat Command
----------------------------------- */
+----------------------------------- */
 Hooks.on("chatMessage", (chatLog, messageText) => {
   if (messageText.trim().toLowerCase() === "/prep") {
     if (!game.user.isGM) {
@@ -82,6 +95,6 @@ Hooks.on("chatMessage", (chatLog, messageText) => {
     }
     const usePages = game.settings.get(MODULE_ID, "usePages");
     createLazy5eJournal({ usePages });
-    return false; // Prevent the command from appearing in chat
+    return false; // Suppress output in chat
   }
 });
