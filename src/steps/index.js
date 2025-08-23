@@ -9,7 +9,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Strong Start",
+    title: "Create a Strong Start",
     description: "Describe an opening scene that grabs attention.",
     numbered: true,
     planned: [
@@ -18,7 +18,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Scenes",
+    title: "Outline Potential Scenes",
     description: "List key scenes that could unfold during the session.",
     numbered: true,
     planned: [
@@ -27,7 +27,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Secrets & Clues",
+    title: "Define Secrets & Clues",
     description: "Write 10 short secrets the characters might uncover.",
     numbered: true,
     planned: [
@@ -36,7 +36,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Fantastic Locations",
+    title: "Develop Fantastic Locations",
     description: "Describe evocative locations the party might visit.",
     numbered: true,
    planned: [
@@ -45,7 +45,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Important NPCs",
+    title: "Outline Important NPCs",
     description: "List major NPCs with motivations and quirks.",
     numbered: true,
     planned: [
@@ -54,7 +54,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Monsters",
+    title: "Choose Relevant Monsters",
     description: "List notable monsters or adversaries.",
     numbered: true,
     planned: [
@@ -63,7 +63,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Treasure",
+    title: "Select Treasure",
     description: "Outline rewards, loot, or story-based incentives.",
     numbered: true,
     planned: [
@@ -72,7 +72,7 @@ export const STEP_DEFS = [
     ]
   },
   {
-    title: "Notes",
+    title: "Other Notes",
     description: "Additional prep notes or reminders.",
     numbered: false,
     planned: [
