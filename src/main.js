@@ -18,7 +18,6 @@ class InstantGenerateForm extends FormApplication {
       console.error(`${MODULE_ID} | Error generating journal:`, err);
       ui.notifications.error("Failed to create prep journal.");
     }
-
     return this.close();
   }
 }
