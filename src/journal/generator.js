@@ -1,5 +1,7 @@
 import { STEP_DEFS } from "../steps/index.js";
 
+const MODULE_ID = "lazy-5e-prep";
+
 export async function createLazy5eJournal({ usePages }) {
   console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
@@ -28,26 +30,36 @@ export async function createLazy5eJournal({ usePages }) {
     const stepsWithDynamicContent = await Promise.all(
       STEP_DEFS.map(async (step, idx) => {
         if (idx === 0) {
-          // REVIEW THE CHARACTERS PAGE with portraits + @Actor clickable links
+          // REVIEW THE CHARACTERS PAGE with portraits + @Actor clickable links + date tracking
           const pcs = game.actors.filter(a =>
             !["npc", "vehicle", "monster"].includes(a.type)
           );
 
-          const actorHTML = pcs.map(a => {
-            const portrait = a.img || "icons/svg/mystery-man.svg";
-            const link = `@Actor[${a.id}]{${a.name}}`;
-            return `
-              <div style="display:flex; align-items:center; gap:0.5em; margin-bottom:1em;">
-                <img src="${portrait}" alt="${a.name}" width="48" height="48" style="border:1px solid #555; border-radius:4px;">
-                ${link}
-              </div>
-              <hr style="margin:1em 0;">
-            `;
-          }).join("");
+          const actorHTML = await Promise.all(
+            pcs.map(async a => {
+              const portrait = a.img || "icons/svg/mystery-man.svg";
+              const lastSeen = a.getFlag(MODULE_ID, "lastSeen") || "";
+              const lastSpotlight = a.getFlag(MODULE_ID, "lastSpotlight") || "";
+              const link = `@Actor[${a.id}]{${a.name}}`;
+
+              return `
+                <div style="display:flex; align-items:center; gap:0.5em; margin-bottom:0.5em;">
+                  <img src="${portrait}" alt="${a.name}" width="48" height="48" style="border:1px solid #555; border-radius:4px;">
+                  ${link}
+                </div>
+                <div style="margin-left:3em; font-size:0.9em;">
+                  Last Seen: <input type="date" data-actor-id="${a.id}" data-flag="lastSeen" value="${lastSeen}">
+                  &nbsp;&nbsp;
+                  Last Spotlight: <input type="date" data-actor-id="${a.id}" data-flag="lastSpotlight" value="${lastSpotlight}">
+                </div>
+                <hr style="margin:1em 0;">
+              `;
+            })
+          );
 
           return {
             ...step,
-            extraContent: actorHTML
+            extraContent: actorHTML.join("")
           };
         }
         return { ...step, extraContent: "" };
@@ -105,7 +117,7 @@ export async function createLazy5eJournal({ usePages }) {
     return journal;
 
   } catch (err) {
-    console.error("❌ Error creating Lazy DM Prep journal:", err);
+    console.error(`❌ ${MODULE_ID} | Error creating Lazy DM Prep journal:`, err);
     return null;
   }
 }
@@ -116,3 +128,25 @@ function renderPlanned(step) {
     .map(p => `<li><strong>${p.label}:</strong> ${p.note}</li>`)
     .join("")}</ul>`;
 }
+
+/* ---------------------------------
+   Update Actor Flags from Journal
+----------------------------------- */
+Hooks.on("renderJournalSheet", (app, element) => {
+  if (!game.user.isGM) return;
+
+  const html = element instanceof jQuery ? element : $(element);
+
+  html.find("input[data-actor-id]").off("change.lazy5e").on("change.lazy5e", async ev => {
+    const input = ev.currentTarget;
+    const actorId = input.dataset.actorId;
+    const flag = input.dataset.flag;
+    const value = input.value || "";
+
+    const actor = game.actors.get(actorId);
+    if (actor) {
+      await actor.setFlag(MODULE_ID, flag, value);
+      ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, ' $1')} updated`);
+    }
+  });
+});
