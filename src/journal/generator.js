@@ -1,92 +1,197 @@
-const MODULE_ID = "lazy5e-journal";
+import { STEP_DEFS } from "../steps/index.js";
 
-/**
- * Create a journal entry with actor-linked date fields
- */
-export async function createLazy5eJournal(actor) {
-  const journalName = `${actor.name} – Lazy5e Journal`;
-  const existing = game.journal.contents.find(j => j.name === journalName);
-  if (existing) return existing.sheet.render(true);
+const MODULE_ID = "lazy-5e-prep";
 
-  const flags = actor.getFlag(MODULE_ID, "dates") || {};
-  const fields = ["lastLongRest", "lastShortRest", "lastDowntime"];
-  const isoToday = new Date().toISOString().split("T")[0];
+export async function createLazy5eJournal({ usePages }) {
+  console.log(`📓 createLazy5eJournal called. usePages = ${usePages}`);
 
-  const content = fields.map(flag => {
-    const label = flag.replace(/([A-Z])/g, " $1");
-    const value = flags[flag] || "";
-    return `
-      <div class="lazy5e-date-field">
-        <label>${label}</label>
-        <input type="date" value="${value}" data-actor-id="${actor.id}" data-flag="${flag}" />
-        <button class="lazy5e-today" data-actor-id="${actor.id}" data-flag="${flag}">Today</button>
-      </div>
-    `;
-  }).join("");
+  try {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const dateStamp = `${mm}/${dd}/${yyyy}`;
 
-  const entry = await JournalEntry.create({
-    name: journalName,
-    content: `<h2>${actor.name} – Rest Tracker</h2>${content}`,
-    folder: null,
-    flags: { [MODULE_ID]: { actorId: actor.id } }
-  });
+    let folder = game.folders.find(
+      f => f.name === "Lazy DM Prep" && f.type === "JournalEntry"
+    );
+    if (!folder) {
+      folder = await Folder.create({
+        name: "Lazy DM Prep",
+        type: "JournalEntry",
+        color: "#d9a066"
+      });
+      console.log("📂 Created folder:", folder.name);
+    }
 
-  entry.sheet.render(true);
+    const stepsWithDynamicContent = await Promise.all(
+      STEP_DEFS.map(async (step, idx) => {
+        if (idx === 0) {
+          const pcs = game.actors.filter(a =>
+            !["npc", "vehicle", "monster"].includes(a.type)
+          );
+
+          const actorHTML = await Promise.all(
+            pcs.map(async a => {
+              const portrait = a.img || "icons/svg/mystery-man.svg";
+              const lastSeenRaw = a.getFlag(MODULE_ID, "lastSeen") || "";
+              const lastSpotlightRaw = a.getFlag(MODULE_ID, "lastSpotlight") || "";
+              const lastSeen = toInputDate(lastSeenRaw);
+              const lastSpotlight = toInputDate(lastSpotlightRaw);
+              const link = `@Actor[${a.id}]{${a.name}}`;
+
+              return `
+                <div class="lazy5e-actor" data-actor-id="${a.id}">
+                  <div style="display:flex; align-items:center; gap:0.5em; margin-bottom:0.5em;">
+                    <img src="${portrait}" alt="${a.name}" width="48" height="48" style="border:1px solid #555; border-radius:4px;">
+                    ${link}
+                  </div>
+                  <div class="lazy5e-dates" style="margin-left:3em; font-size:0.9em; display:flex; gap:1em; align-items:center; flex-wrap:wrap;">
+                    <label>Last Seen:
+                      <input type="date" data-actor-id="${a.id}" data-flag="lastSeen" value="${lastSeen}">
+                    </label>
+                    <button type="button" class="lazy5e-today" data-actor-id="${a.id}" data-flag="lastSeen">Today</button>
+
+                    <label>Last Spotlight:
+                      <input type="date" data-actor-id="${a.id}" data-flag="lastSpotlight" value="${lastSpotlight}">
+                    </label>
+                    <button type="button" class="lazy5e-today" data-actor-id="${a.id}" data-flag="lastSpotlight">Today</button>
+                  </div>
+                </div>
+                <hr style="margin:1em 0;">
+              `;
+            })
+          );
+
+          return {
+            ...step,
+            extraContent: actorHTML.join("")
+          };
+        }
+        return { ...step, extraContent: "" };
+      })
+    );
+
+    let journal;
+    if (usePages) {
+      const pages = stepsWithDynamicContent.map((step, idx) => {
+        const stepNumber = step.numbered ? `${idx + 1}. ` : "";
+        return {
+          name: `${stepNumber}${step.title}`,
+          type: "text",
+          text: {
+            content: `
+              <p>${step.description}</p>
+              ${renderPlanned(step)}
+              ${step.extraContent || ""}
+            `
+          },
+          sort: idx * 100
+        };
+      });
+
+      journal = await JournalEntry.create({
+        name: `Lazy DM Prep – ${dateStamp}`,
+        folder: folder.id,
+        pages
+      });
+
+    } else {
+      const combinedContent = stepsWithDynamicContent.map((step, idx) => {
+        const stepNumber = step.numbered ? `${idx + 1}. ` : "";
+        return `
+          <p><strong>${stepNumber}${step.title}</strong></p>
+          <p>${step.description}</p>
+          ${renderPlanned(step)}
+          ${step.extraContent || ""}
+        `;
+      }).join("<hr>");
+
+      journal = await JournalEntry.create({
+        name: `Lazy DM Prep – ${dateStamp}`,
+        folder: folder.id,
+        pages: [
+          {
+            name: "Prep",
+            type: "text",
+            text: { content: combinedContent }
+          }
+        ]
+      });
+    }
+
+    return journal;
+
+  } catch (err) {
+    console.error(`❌ ${MODULE_ID} | Error creating Lazy DM Prep journal:`, err);
+    return null;
+  }
 }
 
-/**
- * Hook: renderJournalSheet
- * Enables input saving and "Today" button functionality
- */
+function renderPlanned(step) {
+  if (!step.planned || !step.planned.length) return "";
+  return `<ul>${step.planned
+    .map(p => `<li><strong>${p.label}:</strong> ${p.note}</li>`)
+    .join("")}</ul>`;
+}
+
+function toInputDate(value) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const mdy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const m = value.match(mdy);
+  if (m) return `${m[3]}-${m[1]}-${m[2]}`;
+  return "";
+}
+
+/* ---------------------------------
+   Update Actor Flags from Journal (v13-safe)
+----------------------------------- */
 Hooks.on("renderJournalSheet", (app, element) => {
   if (!game.user.isGM) return;
 
   const html = element instanceof jQuery ? element : $(element);
 
-  const saveDate = async (input) => {
+  html.find("input[data-actor-id][data-flag]").off("change.lazy5e").on("change.lazy5e", async ev => {
+    const input = ev.currentTarget;
     const actorId = input.dataset.actorId;
     const flag = input.dataset.flag;
-    const value = input.value || "";
+    const iso = input.value || "";
     const actor = game.actors.get(actorId);
     if (!actor) return;
 
     try {
-      await actor.setFlag(MODULE_ID, flag, value);
+      await actor.setFlag(MODULE_ID, flag, iso);
       ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, " $1")} updated`);
-    } catch (err) {
-      console.error(`${MODULE_ID} | Failed to update flag`, err);
+    } catch (e) {
+      console.error(`${MODULE_ID} | Failed to set flag`, e);
+      ui.notifications.error("Failed to update date. See console.");
     }
-  };
+  });
 
-  html.find("input[data-actor-id][data-flag]")
-    .off(".lazy5e")
-    .on("change.lazy5e blur.lazy5e", async ev => {
-      await saveDate(ev.currentTarget);
-    });
+  html.find("button.lazy5e-today[data-actor-id][data-flag]").off("click.lazy5e").on("click.lazy5e", async ev => {
+    const btn = ev.currentTarget;
+    const actorId = btn.dataset.actorId;
+    const flag = btn.dataset.flag;
+    const actor = game.actors.get(actorId);
+    if (!actor) return;
 
-  html.find("button.lazy5e-today[data-actor-id][data-flag]")
-    .off(".lazy5e")
-    .on("click.lazy5e", async ev => {
-      const btn = ev.currentTarget;
-      const actorId = btn.dataset.actorId;
-      const flag = btn.dataset.flag;
-      const actor = game.actors.get(actorId);
-      if (!actor) return;
+    const isoToday = new Date().toISOString().split("T")[0];
+    const selector = `input[data-actor-id="${actorId}"][data-flag="${flag}"]`;
+    const $input = html.find(selector);
+    if ($input.length) {
+      $input.val(isoToday);
+      $input.trigger("change"); // Ensure save fires
+    }
 
-      const isoToday = new Date().toISOString().split("T")[0];
-      const selector = `input[data-actor-id="${actorId}"][data-flag="${flag}"]`;
-      const input = html.find(selector)[0];
-      if (input) {
-        input.value = isoToday;
-        input.dispatchEvent(new Event("change")); // Trigger save
-      }
-
-      try {
-        await actor.setFlag(MODULE_ID, flag, isoToday);
-        btn.textContent = "Today ✓";
-        setTimeout(() => (btn.textContent = "Today"), 1000);
-      } catch (err) {
-        console.error(`${MODULE_ID} | Failed to set Today`, err);
-      }
-    });
+    try {
+      await actor.setFlag(MODULE_ID, flag, isoToday);
+      btn.textContent = "Today ✓";
+      setTimeout(() => (btn.textContent = "Today"), 1000);
+      ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, " $1")} set to Today`);
+    } catch (e) {
+      console.error(`${MODULE_ID} | Failed to set Today`, e);
+      ui.notifications.error("Failed to set Today. See console.");
+    }
+  });
 });
