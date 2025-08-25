@@ -38,6 +38,7 @@ export async function createLazy5eJournal({ usePages }) {
           const actorHTML = await Promise.all(
             pcs.map(async a => {
               const portrait = a.img || "icons/svg/mystery-man.svg";
+              // Flags may be in various formats; normalize to YYYY-MM-DD for <input type="date">
               const lastSeenRaw = a.getFlag(MODULE_ID, "lastSeen") || "";
               const lastSpotlightRaw = a.getFlag(MODULE_ID, "lastSpotlight") || "";
               const lastSeen = toInputDate(lastSeenRaw);
@@ -67,7 +68,10 @@ export async function createLazy5eJournal({ usePages }) {
             })
           );
 
-          return { ...step, extraContent: actorHTML.join("") };
+          return {
+            ...step,
+            extraContent: actorHTML.join("")
+          };
         }
         return { ...step, extraContent: "" };
       })
@@ -136,81 +140,86 @@ function renderPlanned(step) {
     .join("")}</ul>`;
 }
 
-// Normalize stored date to "YYYY-MM-DD" format for <input type="date">
+// Normalize stored date (e.g., "08/23/2025" or "2025-08-23") to input[type="date"] format "YYYY-MM-DD"
 function toInputDate(value) {
   if (!value) return "";
+  // Already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  // MM/DD/YYYY -> YYYY-MM-DD
   const mdy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
   const m = value.match(mdy);
   if (m) return `${m[3]}-${m[1]}-${m[2]}`;
+  // Fallback: let the browser ignore invalid
   return "";
 }
 
 /* ---------------------------------
-   Update Actor Flags from Journal (v13-safe)
+   Update Actor Flags from Journal (v13-safe, delegated events)
 ----------------------------------- */
 Hooks.on("renderJournalSheet", (app, element) => {
   if (!game.user.isGM) return;
 
-  const html = element instanceof jQuery ? element : $(element);
+  // Wrap raw HTMLElement into jQuery object (v13)
+  const $sheet = element instanceof jQuery ? element : $(element);
 
-  // Change handler for date inputs
-  html.find("input[data-actor-id][data-flag]")
-    .off("change.lazy5e")
-    .on("change.lazy5e", async ev => {
-      const input = ev.currentTarget;
-      const actorId = input.dataset.actorId;
-      const flag = input.dataset.flag;
-      const iso = input.value || "";
+  // Clear our namespace and bind delegated handlers so they survive re-renders
+  $sheet.off(".lazy5e");
 
-      const actor = game.actors.get(actorId);
-      if (!actor) {
-        ui.notifications.warn("Actor not found for update.");
-        return;
-      }
+  // Change handler for date inputs (delegated)
+  $sheet.on("change.lazy5e", 'input[data-actor-id][data-flag]', async ev => {
+    const input = ev.currentTarget;
+    const actorId = input.dataset.actorId;
+    const flag = input.dataset.flag;
+    // input.value for type="date" will be "YYYY-MM-DD"
+    const iso = input.value || "";
 
-      try {
-        await actor.setFlag(MODULE_ID, flag, iso);
-        ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, " $1")} updated`);
-      } catch (e) {
-        console.error(`${MODULE_ID} | Failed to set flag`, e);
-        ui.notifications.error("Failed to update date. See console.");
-      }
-    });
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.warn("Actor not found for update.");
+      return;
+    }
 
-  // Click handler for "Today" buttons
-  html.find("button.lazy5e-today[data-actor-id][data-flag]")
-    .off("click.lazy5e")
-    .on("click.lazy5e", async ev => {
-      const btn = ev.currentTarget;
-      const actorId = btn.dataset.actorId;
-      const flag = btn.dataset.flag;
+    try {
+      await actor.setFlag(MODULE_ID, flag, iso);
+      ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, " $1")} updated`);
+    } catch (e) {
+      console.error(`${MODULE_ID} | Failed to set flag`, e);
+      ui.notifications.error("Failed to update date. See console.");
+    }
+  });
 
-      const actor = game.actors.get(actorId);
-      if (!actor) {
-        ui.notifications.warn("Actor not found for update.");
-        return;
-      }
+  // Click handler for "Today" buttons (delegated)
+  $sheet.on("click.lazy5e", 'button.lazy5e-today[data-actor-id][data-flag]', async ev => {
+    const btn = ev.currentTarget;
+    const actorId = btn.dataset.actorId;
+    const flag = btn.dataset.flag;
 
-      // Today in ISO for <input type="date">
-      const isoToday = new Date().toISOString().split("T")[0];
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.warn("Actor not found for update.");
+      return;
+    }
 
-      // Set the input's value in the DOM and trigger change
-      const selector = `input[data-actor-id="${actorId}"][data-flag="${flag}"]`;
-      const $input = html.find(selector);
-      if ($input.length) {
-        $input.val(isoToday).trigger("change");
-      }
+    // Today in ISO for <input type="date">
+    const isoToday = new Date().toISOString().split("T")[0];
 
+    // Update the input's value AND trigger change to persist and notify once
+    const selector = `input[data-actor-id="${actorId}"][data-flag="${flag}"]`;
+    const $input = $sheet.find(selector);
+    if ($input.length) {
+      $input.val(isoToday).trigger("change");
+    } else {
+      // Fallback: persist even if input wasn't found (e.g., after re-render)
       try {
         await actor.setFlag(MODULE_ID, flag, isoToday);
-        const original = btn.textContent;
-        btn.textContent = "Today ✓";
-        setTimeout(() => (btn.textContent = original), 1000);
-        ui.notifications.info(`${actor.name} – ${flag.replace(/([A-Z])/g, " $1")} set to Today`);
       } catch (e) {
-        console.error(`${MODULE_ID} | Failed to set Today`, e);
-        ui.notifications.error("Failed to set Today. See console.");
+        console.error(`${MODULE_ID} | Fallback setFlag failed`, e);
       }
-    });
+    }
+
+    // Small UX feedback
+    const original = btn.textContent;
+    btn.textContent = "Today ✓";
+    setTimeout(() => (btn.textContent = original), 900);
+  });
 });
