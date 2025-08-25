@@ -2,7 +2,7 @@
   "id": "lazy-5e-prep",
   "title": "Lazy 5e Prep",
   "description": "Streamlined prep using the Lazy Dungeon Master method by Michael E. Shea.",
-  "version": "0.0.50",
+  "version": "0.0.51",
   "type": "module",
   "compatibility": {
     "minimum": "13.0.0",
