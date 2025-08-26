@@ -1,1 +1,29 @@
 .lazy-5e-prep .notes {
+/* ==== Lazy 5e Prep: Injected Controls ==== */
+.lazy5e-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.lazy5e-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lazy5e-row label {
+  flex: 0 0 auto;
+  font-weight: bold;
+}
+
+.lazy5e-row input[type="date"],
+.lazy5e-row input[type="text"] {
+  flex: 1;
+  padding: 0.25rem;
+}
+
+.theme-dark .lazy5e-controls label {
+  color: #fff;
+}
