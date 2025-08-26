@@ -1,8 +1,3 @@
-/* Your existing .lazy-5e-prep .notes styles */
-.lazy-5e-prep .notes {
-  /* existing rules here */
-}
-
 /* ==== Lazy 5e Prep: Injected Controls ==== */
 .lazy5e-controls {
   display: flex;
